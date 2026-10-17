@@ -1,6 +1,7 @@
 "use client";
 import { t } from "@nimchat/i18n";
 import { isSharedRoom } from "@nimchat/brian";
+import { useParams } from "next/navigation";
 import { useChatStore } from "@nimchat/sdk";
 import { useRoom, RoomProvider } from "@/components/chat/room-provider";
 import { SurfaceFocus } from "@/components/brian/surface-focus";
@@ -30,11 +31,8 @@ function Content() {
     </div>
   );
 }
-export default function SharedPage({
-  params
-}: {
-  params: { roomId: string };
-}) {
+export default function SharedPage() {
+  const params = useParams<{ roomId: string }>();
   const room = useChatStore((s) => s.rooms[params.roomId]);
   if (room?.state !== "join" || !isSharedRoom(room.name))
     return (

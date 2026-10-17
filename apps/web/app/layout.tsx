@@ -17,24 +17,24 @@ const openSans = Open_Sans({ subsets: ["latin"] });
 // The HTML depends on the request's Accept-Language, so it is rendered per request.
 export const dynamic = "force-dynamic";
 
-function requestLocale() {
-  return setLocale(localeFromAcceptLanguage(headers().get("accept-language")));
+async function requestLocale() {
+  return setLocale(localeFromAcceptLanguage((await headers()).get("accept-language")));
 }
 
-export function generateMetadata(): Metadata {
-  requestLocale();
+export async function generateMetadata(): Promise<Metadata> {
+  await requestLocale();
   return {
     title: "NimChat",
     description: t("Conversations and interactive surfaces, in the same context."),
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const locale = requestLocale();
+  const locale = await requestLocale();
   return (
     <html lang={locale} suppressHydrationWarning>
       <body className={cn(openSans.className, "bg-[#0B1222]")}>

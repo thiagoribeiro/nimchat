@@ -3,18 +3,14 @@ import { t } from "@nimchat/i18n";
 import { isSharedRoom } from "@nimchat/brian";
 
 import type { ReactNode } from "react";
+import { useParams } from "next/navigation";
 import { useChatStore } from "@nimchat/sdk";
 
 import { RoomProvider } from "@/components/chat/room-provider";
 import { ChatHeader } from "@/components/chat/chat-header";
 
-export default function RoomLayout({
-  children,
-  params
-}: {
-  children: ReactNode;
-  params: { roomId: string };
-}) {
+export default function RoomLayout({ children }: { children: ReactNode }) {
+  const params = useParams<{ roomId: string }>();
   const room = useChatStore((s) => s.rooms[params.roomId]);
   if (room?.state !== "join") {
     return (
