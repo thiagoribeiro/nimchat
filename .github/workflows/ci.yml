@@ -16,6 +16,7 @@ jobs:
       - run: npm test
       - run: npx tsc --noEmit -p packages/sdk
       - run: npx tsc --noEmit -p apps/web
+      - run: npm run lint --workspace @nimchat/web
       - name: Generated validators are up to date
         run: npm run schemas --workspace @nimchat/brian && git diff --exit-code packages/brian/src/validators.js
       - name: Web build and end-to-end tests

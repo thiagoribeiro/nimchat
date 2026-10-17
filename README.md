@@ -11,7 +11,7 @@ processes.
 packages/sdk/     TypeScript SDK: auth, rooms/events, /sync loop, zustand stores, command queue
 packages/brian/   BRIAN projection: validators, surfaces, plugin views, monthly bills logic
 packages/i18n/    gettext-style translations (English source, pt-BR catalog)
-apps/web/         Next.js 13 web app
+apps/web/         Next.js 16 web app
 apps/mobile/      Expo / React Native app (Android)
 ```
 
@@ -109,12 +109,8 @@ rendering.
 
 ## Known issues
 
-- **Two React majors in one workspace.** `apps/web` uses React 18 (Next 13.4) and
-  `apps/mobile` uses React 19 (Expo SDK 57). npm nests the right runtime copies, but some of
-  the mobile app's transitive `@types/react` resolve to the root copy. That can surface as
-  type errors in `apps/mobile`, never at runtime.
-- **`swcMinify: false` in `apps/web/next.config.js` is required.** SWC's minifier breaks
-  `emoji-mart` in production builds only.
+- **Proxies must not re-minify `/_next/static`.** Cloudflare's Auto Minify corrupted
+  `emoji-mart` in production; `next.config.js` sends `Cache-Control: no-transform`.
 
 ## Related projects
 

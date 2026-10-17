@@ -122,7 +122,6 @@ function AttachmentPreview({ content }: { content: AttachmentContent }) {
       disposed = true;
       if (revoke) URL.revokeObjectURL(revoke);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content.content_uri]);
 
   if (isImage) {

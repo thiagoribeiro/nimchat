@@ -8,13 +8,6 @@ const nextConfig = {
   // reachable at runtime traced in — keeps the Docker image small instead of shipping the
   // whole monorepo's node_modules.
   output: "standalone",
-  // The donor repo had this off already. Kept as defense-in-depth: SWC's minifier was one
-  // suspect for emoji-mart's Parcel-bundled internal helpers ending up undefined at
-  // runtime ("X.method is not a function", picker silently never renders) — but the
-  // confirmed root cause in production was Cloudflare's own "Auto Minify" re-mangling the
-  // already-minified JS in transit (see the headers() block below); that alone reproduced
-  // the exact bug even against an origin build unaffected by this flag.
-  swcMinify: false,
   async headers() {
     return [
       {
