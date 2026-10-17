@@ -152,6 +152,12 @@ export function billMonthLabel(month: string): string {
     timeZone: "UTC",
   });
 }
+/** A YYYY-MM-DD bill date in the active locale (dd/mm/yyyy in pt-BR). */
+export function billDateLabel(date: string): string {
+  return new Date(date + "T12:00:00Z").toLocaleDateString(locale(), {
+    timeZone: "UTC",
+  });
+}
 export function billMonthName(month: string): string {
   return new Date(month + "-15T12:00:00Z").toLocaleDateString(locale(), {
     month: "long",
