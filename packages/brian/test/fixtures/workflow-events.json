@@ -1,0 +1,82 @@
+[
+  {
+    "event_id": "workflow-257",
+    "room_id": "room",
+    "sender_id": "agent",
+    "type": "m.ui.message",
+    "room_seq": 257,
+    "content": {
+      "body": [
+        {
+          "type": "plugin",
+          "view": {
+            "steps": [],
+            "title": "Monitorar chuva",
+            "status": "created",
+            "owner_id": "me",
+            "provider": "ritesmith",
+            "revision": 1,
+            "description": "Consultar previsão e avisar quando chover.",
+            "execution_id": "plan_test"
+          },
+          "plugin": "workflow",
+          "surface": {
+            "default": "pinned",
+            "auto_pin": true,
+            "dismissible": true
+          },
+          "version": "1.0",
+          "instance_id": "workflow-rain",
+          "schema_version": "1.0",
+          "fallback_markdown": "**Monitorar chuva** — created"
+        }
+      ],
+      "schema": "brian.message",
+      "version": "1.0"
+    }
+  },
+  {
+    "event_id": "workflow-258",
+    "room_id": "room",
+    "sender_id": "service",
+    "type": "m.plugin.instance.created",
+    "room_seq": 258,
+    "content": {
+      "view": {
+        "steps": [],
+        "title": "Monitorar chuva",
+        "status": "created",
+        "owner_id": "me",
+        "provider": "ritesmith",
+        "revision": 1,
+        "description": "Consultar previsão e avisar quando chover.",
+        "execution_id": "plan_test"
+      },
+      "plugin": "workflow",
+      "instance_id": "workflow-rain"
+    }
+  },
+  {
+    "event_id": "workflow-259",
+    "room_id": "room",
+    "sender_id": "service",
+    "type": "m.plugin.state.updated",
+    "room_seq": 259,
+    "content": {
+      "view": {
+        "steps": [],
+        "title": "Monitorar chuva",
+        "status": "running",
+        "owner_id": "me",
+        "provider": "ritesmith",
+        "revision": 2,
+        "description": "Consultar previsão e avisar quando chover.",
+        "execution_id": "plan_test",
+        "provider_status": "executing",
+        "failure_description": ""
+      },
+      "plugin": "workflow",
+      "instance_id": "workflow-rain"
+    }
+  }
+]

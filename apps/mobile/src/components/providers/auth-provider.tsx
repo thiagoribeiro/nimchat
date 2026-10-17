@@ -1,0 +1,27 @@
+import { useAuthStore } from "@nimchat/sdk";
+import { useEffect } from "react";
+
+import { getNimletClient } from "@/lib/nimlet";
+import { registerForPushNotificationsAsync } from "@/lib/push-notifications";
+
+// Resumes a session on app launch by calling GET /me with whatever token SecureStore
+// already has — mirrors apps/web's auth-provider.tsx (there it's localStorage, here it's
+// SecureStore, same hydrate() call either way).
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const hydrate = useAuthStore((s) => s.hydrate);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  useEffect(() => {
+    hydrate(getNimletClient());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fires for both a fresh login/register and a hydrate-resumed session — either way,
+  // isAuthenticated flips true and the device's push token needs (re)registering.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void registerForPushNotificationsAsync(getNimletClient());
+  }, [isAuthenticated]);
+
+  return <>{children}</>;
+}

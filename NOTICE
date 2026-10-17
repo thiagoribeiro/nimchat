@@ -1,0 +1,12 @@
+NimChat
+Copyright 2026 Thiago Azeredo
+
+This product is licensed under the Apache License 2.0 (see LICENSE), except as
+noted below.
+
+apps/web started from a Next.js chat application tutorial by Antonio Erdeljac
+(https://github.com/AntonioErdeljac), as distributed under the MIT License,
+Copyright (c) 2026 Nirmalya Nayak. See apps/web/LICENSE.
+
+apps/mobile started from the Expo create-expo-app template, MIT License,
+Copyright (c) 2015-present 650 Industries, Inc. (aka Expo). See apps/mobile/LICENSE.

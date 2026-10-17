@@ -1,0 +1,31 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx tsc --noEmit -p packages/sdk
+      - run: npx tsc --noEmit -p apps/web
+      - name: Generated validators are up to date
+        run: npm run schemas --workspace @nimchat/brian && git diff --exit-code packages/brian/src/validators.js
+      - name: Web build and end-to-end tests
+        env:
+          NEXT_PUBLIC_NIMLET_URL: https://nimlet.test
+          NEXT_PUBLIC_BRIAN_AGENT_IDS: review-agent
+          NEXT_PUBLIC_BRIAN_PUBLISHER_IDS: review-publisher
+          NEXT_PUBLIC_BRIAN_SHARING_ENABLED: "true"
+          NEXT_PUBLIC_BRIAN_MONTHLY_BILLS_ENABLED: "true"
+        run: |
+          npm run build --workspace @nimchat/web
+          npx playwright install --with-deps chromium
+          npm run test:e2e --workspace @nimchat/web

@@ -1,0 +1,16 @@
+{
+  "name": "nimchat",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "devDependencies": {
+    "@types/react": "~19.2.2"
+  },
+  "scripts": {
+    "test": "npm test --workspaces --if-present",
+    "typecheck": "tsc --noEmit -p packages/sdk && tsc --noEmit -p apps/web && tsc --noEmit -p apps/mobile"
+  },
+  "license": "Apache-2.0"
+}
