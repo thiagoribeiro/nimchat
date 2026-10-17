@@ -442,7 +442,7 @@ export { brl, parseBRL, billTotals, billAmountInput, reconcileBillAmountInput } 
 
 export { formValues, reconcileDraft, formInputValue, formQuestion } from "./form-fields.ts";
 export type { FormDraft } from "./form-fields.ts";
-export { otherBillGroup, billGroup, billToday, shiftBillMonth, billMonthLabel, billMonthName, validBillDate, billSummary, billOpenLabel, groupBills, shortBillName } from "./monthly-bills.ts";
+export { otherBillGroup, billGroup, billToday, shiftBillMonth, billMonthLabel, billMonthName, billDateLabel, validBillDate, billSummary, billOpenLabel, groupBills, shortBillName } from "./monthly-bills.ts";
 export type { BillFilter } from "./monthly-bills.ts";
 export { useMonthlyBills } from "./use-monthly-bills.ts";
 export type { BillsProps } from "./use-monthly-bills.ts";
