@@ -1,6 +1,7 @@
 import { t, tn } from "@nimchat/i18n";
 import type { NimletClient } from "@nimchat/sdk";
 import * as Notifications from "expo-notifications";
+import { messageNotification } from "./message-notification";
 
 export const BACKGROUND_NOTIFICATION_TASK = "NIMCHAT_PUSH_DIGEST_TASK";
 
@@ -44,8 +45,39 @@ function displayRoomName(name: string): string {
   return name === "direct" ? t("Direct Message") : name;
 }
 
-async function showDigestNotifications(raw: Record<string, unknown>) {
+// One notification per message (nimlet "message" push mode). The event ID is the
+// notification identifier, so a redelivered push replaces instead of duplicating.
+async function showMessageNotification(data: Record<string, unknown>) {
+  const notification = messageNotification(data);
+  if (!notification) return;
+  await Notifications.scheduleNotificationAsync({
+    identifier: notification.eventId,
+    content: {
+      title: notification.title,
+      body: notification.body,
+      data: { roomId: notification.roomId },
+    },
+    trigger: null,
+  });
+}
+
+// Removes the notifications of a room, e.g. when the user opens it.
+export async function clearRoomNotifications(roomId: string): Promise<void> {
+  const presented = await Notifications.getPresentedNotificationsAsync();
+  await Promise.all(
+    presented
+      .filter((n) => n.request.content.data?.roomId === roomId)
+      .map((n) => Notifications.dismissNotificationAsync(n.request.identifier)),
+  );
+}
+
+async function showPushNotifications(raw: Record<string, unknown>) {
   const data = extractDigestFields(raw);
+  if (data.type === "message") return showMessageNotification(data);
+  return showDigestNotifications(data);
+}
+
+async function showDigestNotifications(data: Record<string, unknown>) {
   if (data.type !== "digest" || typeof data.rooms !== "string") return;
 
   let rooms: RoomDigestPayload[];
@@ -88,14 +120,14 @@ async function showDigestNotifications(raw: Record<string, unknown>) {
 // Called while the JS app is running (foreground or backgrounded-but-alive).
 export function setupForegroundDigestListener() {
   return Notifications.addNotificationReceivedListener((notification) => {
-    void showDigestNotifications(notification.request.content.data ?? {});
+    void showPushNotifications(notification.request.content.data ?? {});
   });
 }
 
 // Called by index.js's headless TaskManager task when the app is backgrounded or
 // fully killed — same display logic, different entry point.
 export async function handleBackgroundNotificationTaskPayload(data: Record<string, unknown>) {
-  await showDigestNotifications(data);
+  await showPushNotifications(data);
 }
 
 export function setupNotificationTapListener(onOpenRoom: (roomId: string) => void, onOpenRoomList: () => void) {
