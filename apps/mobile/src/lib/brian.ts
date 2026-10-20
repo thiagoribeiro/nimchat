@@ -4,12 +4,18 @@ import {
   authoritativeRejection,
   instanceKey,
   project,
+  surfacePins,
 } from "@nimchat/brian";
 import type { Block, Surface, Trust } from "@nimchat/brian";
 import { useEffect } from "react";
 import { loadBrianCache, saveBrianCache } from "./brian-cache";
 import type { PendingCommand } from "./brian-cache";
-import { useAuthStore, useChatStore } from "@nimchat/sdk";
+import {
+  cachedRooms,
+  retainTimeline,
+  useAuthStore,
+  useChatStore,
+} from "@nimchat/sdk";
 import type { NimletEvent } from "@nimchat/sdk";
 
 export type { PendingCommand } from "./brian-cache";
@@ -88,8 +94,14 @@ interface LocalState {
   // Commands awaiting an authoritative state update, keyed by instanceKey. Kept
   // across navigation and restarts so a retry reuses the same transaction id.
   pending: Record<string, PendingCommand>;
+  // /sync cursor covered by the events in the store; persisted with them.
+  cursor?: string;
   user: string;
   initialize: (user: string) => void;
+  noteCursor: (cursor: string) => void;
+  flush: () => void;
+  // Logout: drop the cached timeline and cursor, keep the prefs, stop writing.
+  forget: () => void;
   expand: (key: string, value: boolean) => void;
   mark: (key: string, pos: number) => void;
   markRoom: (roomId: string, pos: number) => void;
@@ -99,6 +111,33 @@ interface LocalState {
   persist: () => void;
 }
 let timer: ReturnType<typeof setTimeout> | undefined;
+// Writes a bounded slice of the timeline (see retainTimeline) with the cursor it covers.
+// `prefsOnly` (logout) drops timeline, rooms and cursor and keeps the local prefs.
+function write(
+  s: Pick<LocalState, "user" | "seen" | "roomSeen" | "expanded" | "pending" | "cursor">,
+  prefsOnly = false,
+) {
+  if (!s.user) return;
+  const chat = useChatStore.getState();
+  try {
+    saveBrianCache(
+      s.user,
+      prefsOnly
+        ? []
+        : retainTimeline(chat.messagesByRoom, { pin: surfacePins(trustFor(s.user)) }),
+      {
+        seen: s.seen,
+        roomSeen: s.roomSeen,
+        expanded: s.expanded,
+        pending: s.pending,
+      },
+      prefsOnly ? undefined : s.cursor,
+      prefsOnly ? [] : cachedRooms(chat.rooms),
+    );
+  } catch (err) {
+    console.warn("Could not save the BRIAN cache", err);
+  }
+}
 export const useBrianRead = create<LocalState>((set, get) => ({
   seen: {},
   roomSeen: {},
@@ -113,9 +152,27 @@ export const useBrianRead = create<LocalState>((set, get) => ({
       roomSeen: cache.roomSeen ?? {},
       expanded: cache.expanded ?? {},
       pending: cache.pending ?? {},
+      cursor: cache.cursor,
       user,
     });
+    if (cache.rooms?.length)
+      useChatStore.getState().hydrateRooms(cache.rooms, false);
     useChatStore.getState().applyEvents(cache.events);
+  },
+  // Called right after the batch it came with is applied, so it never runs ahead of it.
+  noteCursor: (cursor) => {
+    set({ cursor });
+    get().persist();
+  },
+  flush: () => {
+    clearTimeout(timer);
+    write(get());
+  },
+  forget: () => {
+    clearTimeout(timer);
+    const s = get();
+    write(s, true);
+    set({ user: "", cursor: undefined });
   },
   expand: (key, value) => {
     set((s) => ({ expanded: { ...s.expanded, [key]: value } }));
@@ -179,24 +236,7 @@ export const useBrianRead = create<LocalState>((set, get) => ({
   },
   persist: () => {
     clearTimeout(timer);
-    timer = setTimeout(() => {
-      const { user, seen, roomSeen, expanded, pending } = get();
-      if (!user) return;
-      try {
-        saveBrianCache(
-          user,
-          Object.values(useChatStore.getState().messagesByRoom).flat(),
-          {
-            seen,
-            roomSeen,
-            expanded,
-            pending,
-          },
-        );
-      } catch (err) {
-        console.warn("Could not save the BRIAN cache", err);
-      }
-    }, 500);
+    timer = setTimeout(() => write(get()), 500);
   },
 }));
 

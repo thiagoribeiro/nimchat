@@ -271,6 +271,36 @@ export function project(
   }
   return surfaces;
 }
+// Keys under which a bounded timeline cache keeps an event older than its window, so
+// project() over the retained slice still recovers every surface: the publisher's state
+// snapshots and the user's surface preferences. Cards (m.ui.message) are not pinned: they
+// render as timeline rows, and an old one kept alone would sit above a gap in the history.
+// A snapshot without its card is enough (originKnown: false), as with a bounded page.
+export function surfacePins(trust: Trust): (e: Event) => string[] {
+  return (e) => {
+    const c = e.content;
+    if (
+      !object(c) ||
+      typeof c.plugin !== "string" ||
+      typeof c.instance_id !== "string"
+    )
+      return [];
+    const key = instanceKey(e.room_id, c.plugin, c.instance_id);
+    if (
+      (e.type === "m.plugin.state.updated" ||
+        e.type === "m.plugin.instance.created") &&
+      trust.publishers.has(e.sender_id)
+    )
+      return ["state:" + key];
+    if (
+      (e.type === "m.ui.surface.dismissed" ||
+        e.type === "m.ui.surface.preference.updated") &&
+      e.sender_id === trust.userId
+    )
+      return [e.type + ":" + key];
+    return [];
+  };
+}
 export function activeSurfaces(surfaces: Map<string, Surface>): Surface[] {
   return [...surfaces.values()]
     .filter((s) => !s.dismissed && (s.userPin || s.active))
