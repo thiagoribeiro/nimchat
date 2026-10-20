@@ -2,12 +2,16 @@
 import { t } from "@nimchat/i18n";
 import { recoverCommandHistory } from "@nimchat/sdk";
 
+import { surfacePins } from "@nimchat/brian";
 import {
   SyncEngine,
+  cachedRooms,
+  createTimelinePersister,
+  rejectedSession,
   useAuthStore,
   useChatStore
 } from "@nimchat/sdk";
-import type { RoomState } from "@nimchat/sdk";
+import type { RoomState, TimelinePersister } from "@nimchat/sdk";
 import {
   createContext,
   useCallback,
@@ -22,6 +26,7 @@ import { brianTrust } from "@/lib/brian";
 import { pluginCommands } from "@/lib/plugin-commands";
 import { RoomRefreshController } from "@/lib/room-refresh";
 import type { RoomRefreshState } from "@/lib/room-refresh";
+import { timelineCache } from "@/lib/timeline-cache";
 import { InviteDismissals } from "@nimchat/sdk/invite-dismissals";
 
 type SyncContextType = RoomRefreshState & {
@@ -106,6 +111,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       useAuthStore.getState().isAuthenticated &&
       useAuthStore.getState().userId === userId;
     useChatStore.getState().reset();
+    const cache = timelineCache(userId);
+    let persister: TimelinePersister | undefined;
+    let engine: SyncEngine | undefined;
     let storage: Storage | null = null;
     try {
       storage = window.localStorage;
@@ -145,9 +153,11 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
             useChatStore.getState().setInitialMessages(id, events as any);
         })
       );
-    const unsubscribe = useChatStore.subscribe((state) => {
-      if (current())
-        pluginCommands.getState().observe(state.messagesByRoom);
+    const unsubscribe = useChatStore.subscribe((state, prev) => {
+      if (!current()) return;
+      pluginCommands.getState().observe(state.messagesByRoom);
+      if (state.messagesByRoom !== prev.messagesByRoom || state.rooms !== prev.rooms)
+        persister?.schedule();
     });
     const rooms = new RoomRefreshController({
       load: () => getNimletClient().listRooms(),
@@ -165,30 +175,55 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       onState: setRoomState
     });
     roomsRef.current = rooms;
-    const engine = new SyncEngine({
-      client: getNimletClient(),
-      onEvents: (events) => {
-        if (current()) {
-          applyEvents(events);
-          setIsConnected(true);
-        }
-      },
-      onError: () => {
-        if (current()) setIsConnected(false);
-      }
-    });
-    engineRef.current = engine;
+    // The cached snapshot seeds the store and gives /sync its cursor, so a reload only
+    // receives what changed. Rooms and sync wait for it (a local read): a room list that
+    // landed first could be undone by cached events of a room left meanwhile.
     const visibility = () => {
       const active = document.visibilityState === "visible";
       rooms.setActive(active);
       if (active) {
-        engine.start();
+        engine?.start();
         pluginCommands.getState().retryPending();
-      } else engine.stop();
+      } else {
+        engine?.stop();
+        void persister?.flush();
+      }
       setIsConnected(active);
     };
-    visibility();
-    document.addEventListener("visibilitychange", visibility);
+    void cache.load().then((snapshot) => {
+      if (!current()) return;
+      if (snapshot?.rooms?.length)
+        useChatStore.getState().hydrateRooms(snapshot.rooms, false);
+      if (snapshot?.events.length) applyEvents(snapshot.events);
+      const timeline = createTimelinePersister({
+        storage: cache,
+        read: () => useChatStore.getState().messagesByRoom,
+        rooms: () => cachedRooms(useChatStore.getState().rooms),
+        retain: { pin: surfacePins(brianTrust(userId)) },
+        cursor: snapshot?.cursor
+      });
+      persister = timeline;
+      engine = new SyncEngine({
+        client: getNimletClient(),
+        since: snapshot?.cursor,
+        onEvents: (events, nextBatch) => {
+          if (current()) {
+            applyEvents(events);
+            timeline.noteCursor(nextBatch);
+            setIsConnected(true);
+          }
+        },
+        onError: (err) => {
+          if (!current()) return;
+          setIsConnected(false);
+          // A session resumed offline (or expired meanwhile) is only checked here.
+          if (rejectedSession(err)) useAuthStore.getState().expire();
+        }
+      });
+      engineRef.current = engine;
+      visibility();
+      document.addEventListener("visibilitychange", visibility);
+    });
 
     return () => {
       live = false;
@@ -198,8 +233,12 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       if (roomsRef.current === rooms) roomsRef.current = null;
       unsubscribe();
       pluginCommands.getState().stop();
-      engine.stop();
+      engine?.stop();
       engineRef.current = null;
+      const auth = useAuthStore.getState();
+      // Logged out: drop this user's cache (shared browsers). Otherwise keep the latest.
+      if (auth.isAuthenticated && auth.userId === userId) void persister?.stop();
+      else void (persister?.discard() ?? Promise.resolve()).then(() => cache.clear());
     };
   }, [isAuthenticated, userId, applyEvents]);
 

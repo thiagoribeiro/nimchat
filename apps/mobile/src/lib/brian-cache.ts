@@ -1,67 +1,47 @@
 import { File, Paths } from "expo-file-system";
-import type { NimletEvent } from "@nimchat/sdk";
+import type { NimletEvent, RoomListEntry } from "@nimchat/sdk";
 
+import { readBrianCache } from "./brian-cache-format";
+import type { LocalBrianPrefs, LocalBrianState } from "./brian-cache-format";
 import { NIMLET_URL } from "./nimlet";
 
-const TYPES = new Set([
-  "m.ui.message",
-  "m.plugin.state.updated",
-  "m.plugin.instance.created",
-  "m.ui.surface.preference.updated",
-  "m.ui.surface.dismissed",
-  "m.plugin.command.rejected",
-]);
+export type { LocalBrianPrefs, LocalBrianState, PendingCommand } from "./brian-cache-format";
+
 const server = NIMLET_URL;
 const namespace = process.env.EXPO_PUBLIC_NIMLET_NAMESPACE ?? "default";
-function file(user: string) {
+function file(user: string, version: "v3" | "v4") {
   return new File(
     Paths.document,
     // v2: read positions are room_seq (were global stream positions); old files are ignored.
-    "brian-v3-" +
+    // v4: the retained timeline of every event type plus the /sync cursor.
+    `brian-${version}-` +
       encodeURIComponent(JSON.stringify([server, namespace, user])) +
       ".json",
   );
 }
-export interface PendingCommand {
-  txn: string;
-  eventId?: string;
-  revision: number;
-  command: string;
-  payload: Record<string, unknown>;
-  // Authoritative rejection reason, shown until the user dismisses or retries.
-  rejected?: string;
-}
-export interface LocalBrianPrefs {
-  seen: Record<string, number>;
-  roomSeen?: Record<string, number>;
-  expanded?: Record<string, boolean>;
-  pending?: Record<string, PendingCommand>;
-}
-export interface LocalBrianState extends LocalBrianPrefs {
-  events: NimletEvent[];
-}
+const text = (f: File) => {
+  try {
+    return f.exists ? f.textSync() : null;
+  } catch {
+    return null;
+  }
+};
 // Local cache only: never an authority. Sync rebuilds the projection.
 export function loadBrianCache(user: string): LocalBrianState {
-  try {
-    const f = file(user);
-    if (f.exists) {
-      const data = JSON.parse(f.textSync());
-      if (Array.isArray(data.events) && data.seen) return data;
-    }
-  } catch {}
-  return { events: [], seen: {} };
+  return readBrianCache(text(file(user, "v4")), text(file(user, "v3")));
 }
+// One write for events and cursor: the cursor never gets ahead of the events stored with it.
+// Callers pass an already retained (bounded) set of events.
 export function saveBrianCache(
   user: string,
   events: NimletEvent[],
   prefs: LocalBrianPrefs,
+  cursor?: string,
+  rooms?: RoomListEntry[],
 ): void {
-  const f = file(user);
+  const f = file(user, "v4");
   if (!f.exists) f.create();
-  f.write(
-    JSON.stringify({
-      events: events.filter((e) => TYPES.has(e.type)),
-      ...prefs,
-    }),
-  );
+  f.write(JSON.stringify({ events, cursor, rooms, ...prefs }));
+  const old = file(user, "v3");
+  if (old.exists) old.delete();
 }

@@ -21,7 +21,8 @@
     "./command-queue": "./src/command-queue.ts",
     "./chat-store": "./src/store.ts",
     "./shared-history": "./src/shared-history.ts",
-    "./invite-dismissals": "./src/invite-dismissals.ts"
+    "./invite-dismissals": "./src/invite-dismissals.ts",
+    "./timeline-cache": "./src/timeline-cache.ts"
   },
   "scripts": {
     "test": "node --experimental-strip-types --test test/*.test.ts"

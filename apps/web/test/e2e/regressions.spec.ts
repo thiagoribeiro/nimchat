@@ -554,3 +554,62 @@ for (const width of [1280, 390])
       contentType: "image/png"
     });
   });
+
+test("a reload resumes /sync from the cached cursor and shows cached messages at once", async ({
+  page
+}) => {
+  const api = await mockBackend(page);
+  const syncs: string[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname === "/sync") syncs.push(url.search);
+  });
+  await page.goto("/rooms/room");
+  await expect(page.getByText("Cadastro salvo").first()).toBeVisible();
+  expect(syncs[0]).not.toContain("since=");
+  // A batch with events is what carries a cursor to persist.
+  api.publish("m.room.message", { msgtype: "m.text", body: "Mensagem em cache" }, "me");
+  await expect(page.getByText("Mensagem em cache")).toBeVisible();
+  // Past the persister debounce, so the snapshot with the cursor is written.
+  await page.waitForTimeout(700);
+
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route("**/rooms/room/messages**", async (route) => {
+    await held;
+    await route.fallback();
+  });
+  syncs.length = 0;
+  await page.reload();
+  // /messages is still held: these come from the local snapshot.
+  await expect(page.getByText("Mensagem em cache")).toBeVisible();
+  await expect(page.getByText("Cadastro salvo").first()).toBeVisible();
+  await expect.poll(() => syncs.length).toBeGreaterThan(0);
+  expect(syncs[0]).toContain("since=opaque-qa-cursor");
+  release();
+});
+
+test("a reload without network reopens the cached conversation instead of the login", async ({
+  page
+}) => {
+  await mockBackend(page);
+  await page.goto("/rooms/room");
+  await expect(page.getByText("Cadastro salvo").first()).toBeVisible();
+  // Past the persister debounce, so the snapshot (rooms included) is written.
+  await page.waitForTimeout(700);
+  await page.route("https://nimlet.test/**", (route) => route.abort("internetdisconnected"));
+  await page.reload();
+  await expect(page.getByText("Cadastro salvo").first()).toBeVisible();
+  await expect(page).toHaveURL(/\/rooms\/room$/);
+});
+
+test("a session the server rejects mid-use goes back to the login", async ({
+  page
+}) => {
+  await mockBackend(page);
+  await page.goto("/rooms/room");
+  await expect(page.getByText("Cadastro salvo").first()).toBeVisible();
+  await page.route("https://nimlet.test/sync**", (route) =>
+    route.fulfill({ status: 401, contentType: "application/json", body: "{}" }));
+  await expect(page).toHaveURL(/\/login/, { timeout: 45000 });
+});

@@ -2,7 +2,12 @@ import { t } from "@nimchat/i18n";
 import { recoverCommandHistory } from "@nimchat/sdk";
 import { pluginCommands, commandStorage } from "@/lib/plugin-commands";
 import { trustFor } from "@/lib/brian";
-import { SyncEngine, useAuthStore, useChatStore } from "@nimchat/sdk";
+import {
+  SyncEngine,
+  rejectedSession,
+  useAuthStore,
+  useChatStore,
+} from "@nimchat/sdk";
 import type { RoomState } from "@nimchat/sdk";
 import {
   createContext,
@@ -119,9 +124,12 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
             useChatStore.getState().setInitialMessages(id, events as any);
         }),
       );
-    const unsubscribeCommands = useChatStore.subscribe((s) =>
-      pluginCommands.getState().observe(s.messagesByRoom),
-    );
+    const unsubscribeCommands = useChatStore.subscribe((s, prev) => {
+      pluginCommands.getState().observe(s.messagesByRoom);
+      // Room pages and room-list pruning change the cache too, not only sync batches.
+      if (s.messagesByRoom !== prev.messagesByRoom || s.rooms !== prev.rooms)
+        useBrianRead.getState().persist();
+    });
     let live = true;
     const current = () =>
       live &&
@@ -159,9 +167,11 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     // history, not news. The server answers catch-up in full pages of
     // SYNC_PAGE events; the first short page ends the replay.
     let baseline = Object.keys(useBrianRead.getState().roomSeen).length === 0;
+    // Resuming from the cached cursor, /sync only delivers what the cache hasn't seen.
     const engine = new SyncEngine({
       client: getNimletClient(),
-      onEvents: (events) => {
+      since: useBrianRead.getState().cursor,
+      onEvents: (events, nextBatch) => {
         if (!current()) return;
         setIsConnected(AppState.currentState === "active");
         applyEvents(events);
@@ -169,10 +179,13 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           useBrianRead.getState().baselineRooms(events);
           if (events.length < SYNC_PAGE) baseline = false;
         }
-        useBrianRead.getState().persist();
+        useBrianRead.getState().noteCursor(nextBatch);
       },
-      onError: () => {
-        if (current()) setIsConnected(false);
+      onError: (err) => {
+        if (!current()) return;
+        setIsConnected(false);
+        // A session resumed offline (or expired meanwhile) is only checked here.
+        if (rejectedSession(err)) useAuthStore.getState().expire();
       },
     });
     engineRef.current = engine;
@@ -186,6 +199,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       } else {
         engine.stop();
         setIsConnected(false);
+        useBrianRead.getState().flush();
       }
     };
     applyAppState(AppState.currentState);
@@ -201,6 +215,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       if (roomsRef.current === rooms) roomsRef.current = null;
       engine.stop();
       engineRef.current = null;
+      const auth = useAuthStore.getState();
+      if (auth.isAuthenticated && auth.userId === userId) useBrianRead.getState().flush();
+      else useBrianRead.getState().forget();
     };
   }, [isAuthenticated, userId, applyEvents]);
 
