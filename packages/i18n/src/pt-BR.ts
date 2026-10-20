@@ -187,6 +187,7 @@ export const ptBR: Record<string, string> = {
   "In this conversation": "Nesta conversa",
   "In use ({count})": "Em uso ({count})",
   "Includes {count} estimate(s)": "Inclui {count} estimativa(s)",
+  "Interactive card": "Card interativo",
   "Interrupted": "Interrompido",
   "Invalid value": "Valor inválido",
   "Invitation": "Convite",
@@ -353,6 +354,7 @@ export const ptBR: Record<string, string> = {
   "Show": "Mostrar",
   "Show in the active list": "Mostrar na lista ativa",
   "Show invitations dismissed on this device ({count})": "Mostrar convites dispensados neste dispositivo ({count})",
+  "Someone": "Alguém",
   "Something went wrong": "Algo deu errado",
   "Something went wrong. Try again.": "Algo deu errado. Tente novamente.",
   "Start conversation": "Iniciar conversa",
@@ -447,4 +449,6 @@ export const ptBR: Record<string, string> = {
   "{plugin}: {title}. Open surface": "{plugin}: {title}. Abrir superfície",
   "· invitation sent": "· convite enviado",
   "✓ Monthly bills": "✓ Contas mensais",
+  "📎 File": "📎 Arquivo",
+  "📷 Photo": "📷 Foto",
 };

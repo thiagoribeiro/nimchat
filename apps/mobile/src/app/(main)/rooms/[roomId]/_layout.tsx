@@ -1,14 +1,16 @@
 import { t } from "@nimchat/i18n";
 import { useChatStore } from "@nimchat/sdk";
 import { Stack, useLocalSearchParams } from "expo-router";
+import { useEffect } from "react";
 import { Lock } from "lucide-react-native";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, AppState, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { RoomProvider, useRoomHistoryLoader } from "@/components/chat/room-context";
 import { goBackOr } from "@/components/chat/room-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/feedback";
+import { clearRoomNotifications } from "@/lib/push-notifications";
 import { useRoomAccess } from "@/lib/room-access";
 import { routes } from "@/lib/routes";
 import { colors } from "@/theme/tokens";
@@ -22,6 +24,16 @@ export default function RoomLayout() {
   const access = useRoomAccess(roomId);
   const name = useChatStore((s) => s.rooms[roomId]?.name) ?? t("Conversation");
   const history = useRoomHistoryLoader(access === "ok" ? roomId : "");
+  // Opening a conversation, or returning to it from the background, clears its
+  // message notifications.
+  useEffect(() => {
+    if (access !== "ok") return;
+    void clearRoomNotifications(roomId).catch(() => {});
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") void clearRoomNotifications(roomId).catch(() => {});
+    });
+    return () => sub.remove();
+  }, [roomId, access]);
 
   if (access !== "ok") {
     return (
