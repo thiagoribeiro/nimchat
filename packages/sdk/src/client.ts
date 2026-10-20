@@ -192,11 +192,11 @@ export class NimletClient {
   // Long-poll: resolves either as soon as new events exist, or after `timeout` ms with an
   // empty batch. Callers loop on this (see sync.ts) — do not call once and stop. `since` is
   // the previous response's opaque next_batch; omit it on the first sync.
-  sync(opts: { since?: string; timeout?: number } = {}): Promise<SyncResponse> {
+  sync(opts: { since?: string; timeout?: number; signal?: AbortSignal } = {}): Promise<SyncResponse> {
     const params = new URLSearchParams();
     if (opts.since) params.set("since", opts.since);
     params.set("timeout", String(opts.timeout ?? 30000));
-    return this.request<SyncResponse>(`/sync?${params.toString()}`);
+    return this.request<SyncResponse>(`/sync?${params.toString()}`, { signal: opts.signal });
   }
 
   async uploadMedia(
