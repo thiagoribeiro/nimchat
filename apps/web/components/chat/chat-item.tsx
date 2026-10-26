@@ -22,6 +22,7 @@ import { getNimletClient } from "@/lib/nimlet";
 import { AgentStatus } from "@/components/brian/agent-status";
 import { SurfaceReference } from "@/components/brian/surface-reference";
 import { BlockView } from "@/components/brian/block-view";
+import { Markdown } from "@/components/markdown";
 
 
 interface ChatItemProps {
@@ -66,14 +67,12 @@ export function ChatItem({ event, reactions, roomId, surfaces, trust, embedded =
           </div>}
 
           {event.type === "m.room.message" && (
-            <p className="text-sm text-slate-300">
-              {(event.content as MessageContent).body}
-            </p>
+            <Markdown text={(event.content as MessageContent).body} />
           )}
           {event.type === "m.ui.message" && decode(event.content).map((block,index)=>{
             const trusted=trust.agents.has(event.sender_id)||trust.publishers.has(event.sender_id);
             if(block.type!=="plugin")return <BlockView key={index} block={block} roomId={roomId} trust={trust}/>;
-            if(!trusted)return <p key={index} className="whitespace-pre-wrap text-sm text-slate-300">{fallback(block)}</p>;
+            if(!trusted)return <Markdown key={index} text={fallback(block)}/>;
             const latest=surfaces.get(instanceKey(roomId,block.plugin,block.instance_id))?.block??block;
             if(block.plugin==="agent_status")return <AgentStatus key={index} block={latest} roomId={roomId} userId={trust.userId}/>;
             return <SurfaceReference key={index} block={block} roomId={roomId} surfaces={surfaces}/>;

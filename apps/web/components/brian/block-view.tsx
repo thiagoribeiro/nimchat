@@ -17,6 +17,7 @@ import Link from "next/link";
 import type { Block, Trust } from "@nimchat/brian";
 import { useEffect, useState, useMemo } from "react";
 import { AgentStatus } from "@/components/brian/agent-status";
+import { Markdown } from "@/components/markdown";
 import { pluginCommands, usePluginCommands } from "@/lib/plugin-commands";
 import { ApprovalView } from "./plugins/approval-view";
 import { ChecklistView } from "./plugins/checklist-view";
@@ -41,7 +42,7 @@ export function BlockView({
 }) {
   const rooms = useChatStore((s) => s.rooms);
   if (!supported(block))
-    return <p className="whitespace-pre-wrap">{fallback(block)}</p>;
+    return <Markdown text={fallback(block)} />;
   if (block.type !== "plugin") {
     if (block.type === "reference") {
       const target = referenceTarget(block);
@@ -78,9 +79,10 @@ export function BlockView({
         </dl>
       );
     return (
-      <p className="whitespace-pre-wrap text-sm">
-        {block.text ?? block.title ?? block.message ?? fallback(block)}
-      </p>
+      <Markdown
+        className="text-inherit"
+        text={String(block.text ?? block.title ?? block.message ?? fallback(block))}
+      />
     );
   }
   if (block.plugin === "agent_status")

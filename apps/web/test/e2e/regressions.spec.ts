@@ -613,3 +613,45 @@ test("a session the server rejects mid-use goes back to the login", async ({
     route.fulfill({ status: 401, contentType: "application/json", body: "{}" }));
   await expect(page).toHaveURL(/\/login/, { timeout: 45000 });
 });
+
+test("message bodies render Markdown without raw HTML", async ({ page }) => {
+  const api = await mockBackend(page);
+  await page.goto("/rooms/room");
+  api.publish("m.room.message", {
+    body: "**Hoje chove?** Sim, *fraco*.\n- Chuva: `41%`\n- [Radar](https://radar.example)\n\n<b>cru</b>",
+  }, "review-agent");
+  await expect(page.locator("strong", { hasText: "Hoje chove?" })).toBeVisible();
+  await expect(page.locator("em", { hasText: "fraco" })).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: "Chuva: 41%" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Radar" })).toHaveAttribute("href", "https://radar.example");
+  await expect(page.getByText("**Hoje chove?**")).toHaveCount(0);
+  await expect(page.locator("b", { hasText: "cru" })).toHaveCount(0);
+});
+
+test("the timeline follows replies that join the agent turn, unless the reader scrolled up", async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 420 });
+  const api = await mockBackend(page);
+  await page.goto("/rooms/room");
+  await expect(page.getByText("Pensando QA", { exact: true }).last()).toBeVisible();
+  const box = page.locator("div.overflow-y-auto:has([data-agent-turn])").last();
+  const gap = () => box.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight);
+  await expect.poll(gap).toBeLessThan(2);
+  // Same request as the status card: the reply joins its row, so the row count is unchanged.
+  const reply = (body: string) => api.publish("m.room.message", { body, metadata: { request_event_id: "qa" } }, "review-agent");
+  reply("Primeira resposta QA\n\nlinha\n\nlinha\n\nlinha\n\nlinha\n\nfim");
+  await expect(page.getByText("Primeira resposta QA")).toBeInViewport();
+  await expect.poll(gap).toBeLessThan(2);
+
+  await box.evaluate((el) => el.scrollTo({ top: 0 }));
+  reply("Segunda resposta QA");
+  await expect(page.getByText("Segunda resposta QA")).toBeAttached();
+  await page.waitForTimeout(300);
+  expect(await box.evaluate((el) => el.scrollTop)).toBe(0);
+
+  await page.getByPlaceholder("Mensagem para Sala teste").fill("Minha pergunta QA");
+  await page.getByPlaceholder("Mensagem para Sala teste").press("Enter");
+  await expect(page.getByPlaceholder("Mensagem para Sala teste")).toHaveValue("");
+  // The mock does not echo sends; the real server returns the message through /sync.
+  api.publish("m.room.message", { body: "Minha pergunta QA" }, "me");
+  await expect(page.getByText("Minha pergunta QA")).toBeInViewport();
+});
