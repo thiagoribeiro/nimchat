@@ -16,6 +16,7 @@ import { AgentStatus } from "./agent-status";
 import { MonthlyBills } from "./monthly-bills";
 import { ApprovalView } from "./plugins/approval-view";
 import { ChecklistView } from "./plugins/checklist-view";
+import { EmailTriageView } from "./plugins/email-triage-view";
 import { CommandStatus } from "./plugins/command-status";
 import { CoreBlock } from "./plugins/core-block";
 import { FormView } from "./plugins/form-view";
@@ -80,7 +81,8 @@ function PluginBlock({
     disabled:
       !interactive ||
       !!block.view.transfer ||
-      (!!pending && !["checklist", "monthly_bills"].includes(block.plugin)),
+      (!!pending &&
+        !["checklist", "monthly_bills", "email_triage"].includes(block.plugin)),
     send,
   };
   if (block.plugin === "agent_status")
@@ -116,6 +118,12 @@ function PluginBlock({
           }
         />
       )}
+      {block.plugin === "email_triage" &&
+        (process.env.EXPO_PUBLIC_BRIAN_EMAIL_TRIAGE_ENABLED === "true" ? (
+          <EmailTriageView {...props} commands={own} />
+        ) : (
+          <Text style={styles.body}>{block.fallback_markdown ?? view.title}</Text>
+        ))}
       {block.plugin === "approval" && <ApprovalView {...props} />}
       {block.plugin === "workflow" && <WorkflowView {...props} />}
       {block.plugin === "checklist" && <ChecklistView {...props} />}

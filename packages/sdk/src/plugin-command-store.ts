@@ -142,7 +142,8 @@ export function createPluginCommandStore(
         ]);
         if (active && (serial.has(command) || serial.has(active.command)))
           throw new Error(t("Wait for the previous command to be confirmed."));
-        if (active && !["checklist", "monthly_bills"].includes(block.plugin))
+        // Plugins whose commands commute queue them; the rest wait for confirmation.
+        if (active && !["checklist", "monthly_bills", "email_triage"].includes(block.plugin))
           return;
         const txn = queue.enqueue(
           roomId,

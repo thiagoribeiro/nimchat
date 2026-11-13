@@ -20,6 +20,7 @@ import { AgentStatus } from "@/components/brian/agent-status";
 import { pluginCommands, usePluginCommands } from "@/lib/plugin-commands";
 import { ApprovalView } from "./plugins/approval-view";
 import { ChecklistView } from "./plugins/checklist-view";
+import { EmailTriageView } from "./plugins/email-triage-view";
 import { CommandStatus } from "./plugins/command-status";
 import { FormView } from "./plugins/form-view";
 import { PollView } from "./plugins/poll-view";
@@ -140,7 +141,8 @@ function PluginContent({
   const blocked =
     !ready ||
     !!block.view.transfer ||
-    (!!pending && !["checklist", "monthly_bills"].includes(block.plugin));
+    (!!pending &&
+      !["checklist", "monthly_bills", "email_triage"].includes(block.plugin));
   const [notice, setNotice] = useState("");
   const [clock, setClock] = useState(Date.now);
   useEffect(() => {
@@ -186,14 +188,16 @@ function PluginContent({
     )
   };
   const status = statusInfo(view);
+  // Full-screen app-owned surfaces carry their own header.
+  const bare = focus && (bills || block.plugin === "email_triage");
   return (
     <article
       className={
         "space-y-4 rounded-xl border border-[#334155] bg-[#1A2338] " +
-        (focus && bills ? "p-3" : "p-5")
+        (bare ? "p-3" : "p-5")
       }
     >
-      {!(focus && bills) && (
+      {!bare && (
         <div>
           <p className="text-lg font-semibold">
             {view.title ?? view.question ?? block.plugin}
@@ -235,6 +239,23 @@ function PluginContent({
           }
           send={(cmd, payload, retry) =>
             pluginCommands.getState().send(roomId, block, cmd, payload, retry)
+          }
+        />
+      )}
+      {block.plugin === "email_triage" &&
+        process.env.NEXT_PUBLIC_BRIAN_EMAIL_TRIAGE_ENABLED !== "true" && (
+          <p className="text-sm text-slate-400">{fallback(block)}</p>
+        )}
+      {block.plugin === "email_triage" &&
+        process.env.NEXT_PUBLIC_BRIAN_EMAIL_TRIAGE_ENABLED === "true" && (
+        <EmailTriageView
+          {...props}
+          commands={own}
+          focus={focus}
+          onOpen={() =>
+            router.push(
+              `/rooms/${encodeURIComponent(roomId)}/surfaces/email_triage/${encodeURIComponent(block.instance_id)}`
+            )
           }
         />
       )}
