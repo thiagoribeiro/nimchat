@@ -40,6 +40,9 @@ RUN apk add --no-cache bash
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
+# Docker sets HOSTNAME to the container ID; Next standalone would listen only there
+# and the 127.0.0.1 healthcheck (and Traefik) would never reach it.
+ENV HOSTNAME=0.0.0.0
 
 # next.config.js has output:"standalone" — this traces only the deps actually reachable at
 # runtime instead of shipping the whole monorepo's node_modules into the image.
