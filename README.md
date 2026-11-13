@@ -52,7 +52,7 @@ End-to-end tests run against a mocked backend at `https://nimlet.test` in pt-BR:
 ```sh
 NEXT_PUBLIC_NIMLET_URL=https://nimlet.test NEXT_PUBLIC_BRIAN_AGENT_IDS=review-agent \
   NEXT_PUBLIC_BRIAN_PUBLISHER_IDS=review-publisher NEXT_PUBLIC_BRIAN_SHARING_ENABLED=true \
-  NEXT_PUBLIC_BRIAN_MONTHLY_BILLS_ENABLED=true npm run build --workspace @nimchat/web
+  NEXT_PUBLIC_BRIAN_MONTHLY_BILLS_ENABLED=true NEXT_PUBLIC_BRIAN_EMAIL_TRIAGE_ENABLED=true npm run build --workspace @nimchat/web
 npx playwright install chromium   # or set PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
 npm run test:e2e --workspace @nimchat/web
 ```
