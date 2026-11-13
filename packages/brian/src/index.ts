@@ -48,6 +48,11 @@ const known = new Set([
 const v = validators as unknown as Record<string, (value: unknown) => boolean>;
 const object = (x: unknown): x is Block =>
   !!x && typeof x === "object" && !Array.isArray(x);
+// A state event carries the plugin view; publishers may send only the required
+// `state` (the view is the same object), so read `view` and fall back to `state`.
+export function eventView(c: Block): Block | undefined {
+  return object(c.view) ? c.view : object(c.state) ? c.state : undefined;
+}
 export const instanceKey = (room: string, plugin: string, id: string) =>
   JSON.stringify([room, plugin, id]);
 export function supported(block: Block): boolean {
@@ -201,10 +206,11 @@ export function project(
         e.type === "m.plugin.instance.created") &&
       trust.publishers.has(e.sender_id)
     ) {
+      const view = eventView(c);
       if (
         typeof c.plugin !== "string" ||
         typeof c.instance_id !== "string" ||
-        !object(c.view)
+        !view
       )
         continue;
       const candidate = {
@@ -213,13 +219,13 @@ export function project(
         version: "1.0",
         schema_version: "1.0",
         instance_id: c.instance_id,
-        view: c.view,
-        fallback_markdown: `${c.view.title || c.plugin} — ${c.view.status}`,
+        view,
+        fallback_markdown: `${view.title || c.plugin} — ${view.status}`,
       };
       if (!supported(candidate)) continue;
       const key = instanceKey(e.room_id, c.plugin, c.instance_id);
       const old = states.get(key);
-      if (!old || c.view.revision > old.block.view.revision)
+      if (!old || view.revision > old.block.view.revision)
         states.set(key, { block: candidate, event: e });
     } else if (
       e.type === "m.ui.surface.dismissed" &&

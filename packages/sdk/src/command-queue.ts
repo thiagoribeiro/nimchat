@@ -263,17 +263,19 @@ export class CommandQueue {
           item.error = c.reason;
           return true;
         }
+        // `view` is optional in state events (it equals `state`): read either.
+        const view = object(c.view) ? c.view : c.state;
         if (
           e.type === "m.plugin.state.updated" &&
-          this.options.validView(item.plugin, item.instanceId, c.view) &&
-          Number.isSafeInteger(c.view.revision) &&
-          (c.view.revision > item.revision ||
-            (item.command === "refresh" && c.view.revision === item.revision))
+          this.options.validView(item.plugin, item.instanceId, view) &&
+          Number.isSafeInteger(view.revision) &&
+          (view.revision > item.revision ||
+            (item.command === "refresh" && view.revision === item.revision))
         ) {
           results[commandKey(item.roomId, item.plugin, item.instanceId)] = {
             eventId: item.eventId,
             txn: item.txn,
-            revision: c.view.revision,
+            revision: view.revision,
           };
           return false;
         }

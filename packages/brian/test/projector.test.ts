@@ -227,3 +227,16 @@ test("snapshot recovery still rejects untrusted senders and malformed plugin vie
     ...(snapshot.content as Block), view: { revision: 20, status: "made_up" },
   }}], trust).size, 0);
 });
+
+test("a publisher event with only `state` (no duplicated `view`) is projected the same", () => {
+  const events = [
+    message,
+    event("s2", 12, "m.plugin.state.updated", { plugin: "approval", instance_id: "a", state: view(2, "approved") }),
+  ];
+  const s = project(events, trust).get(instanceKey("room", "approval", "a"))!;
+  assert.equal(s.block.view.revision, 2);
+  assert.equal(s.block.view.status, "approved");
+  // when both are present, `view` wins (same object by contract)
+  const both = project([message, event("b", 13, "m.plugin.state.updated", { plugin: "approval", instance_id: "a", state: view(9), view: view(3, "approved") })], trust);
+  assert.equal(both.get(instanceKey("room", "approval", "a"))!.block.view.revision, 3);
+});
