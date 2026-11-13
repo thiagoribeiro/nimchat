@@ -376,3 +376,12 @@ test("remote bill values update untouched fields and preserve in-progress edits"
   assert.equal(reconcileBillAmountInput("", "242,50", "287,40"), "");
   assert.equal(reconcileBillAmountInput("digitando", "242,50", ""), "digitando");
 });
+test("a state-only event (view is optional in the schema) projects and acknowledges", async () => {
+  const q = queue();
+  const a = q.enqueue("room", "checklist", "list", 1, "check_item", { item_id: "a" });
+  await q.flush();
+  const stateOnly = ack(a, 2);
+  stateOnly.content = { plugin: "checklist", instance_id: "list", command_event_id: a, state: { revision: 2 } } as any;
+  q.observe([stateOnly]);
+  assert.equal(q.items.length, 0);
+});

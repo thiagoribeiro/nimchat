@@ -26,6 +26,7 @@ jobs:
           NEXT_PUBLIC_BRIAN_PUBLISHER_IDS: review-publisher
           NEXT_PUBLIC_BRIAN_SHARING_ENABLED: "true"
           NEXT_PUBLIC_BRIAN_MONTHLY_BILLS_ENABLED: "true"
+          NEXT_PUBLIC_BRIAN_EMAIL_TRIAGE_ENABLED: "true"
         run: |
           npm run build --workspace @nimchat/web
           npx playwright install --with-deps chromium

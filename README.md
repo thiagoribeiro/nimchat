@@ -1,6 +1,6 @@
 # NimChat
 
-NimChat is a web and Android chat client for [Nimlet](https://github.com/thiagoribeiro/nimlet)
+NimChat is a web, Linux desktop and Android chat client for [Nimlet](https://github.com/thiagoribeiro/nimlet)
 with first-class support for [BRIAN](https://github.com/thiagoribeiro/brian) rich blocks.
 Approvals, checklists, polls, forms, workflows and agent activity render as interactive
 cards and "surfaces" next to the conversation. Interactions go back to the server as
@@ -13,6 +13,7 @@ packages/brian/   BRIAN projection: validators, surfaces, plugin views, monthly 
 packages/i18n/    gettext-style translations (English source, pt-BR catalog)
 apps/web/         Next.js 16 web app
 apps/mobile/      Expo / React Native app (Android)
+apps/desktop/     Electron shell around the web build (Linux AppImage)
 ```
 
 The UI follows the browser or device language. English is the default, and Brazilian
@@ -51,10 +52,26 @@ End-to-end tests run against a mocked backend at `https://nimlet.test` in pt-BR:
 ```sh
 NEXT_PUBLIC_NIMLET_URL=https://nimlet.test NEXT_PUBLIC_BRIAN_AGENT_IDS=review-agent \
   NEXT_PUBLIC_BRIAN_PUBLISHER_IDS=review-publisher NEXT_PUBLIC_BRIAN_SHARING_ENABLED=true \
-  NEXT_PUBLIC_BRIAN_MONTHLY_BILLS_ENABLED=true npm run build --workspace @nimchat/web
+  NEXT_PUBLIC_BRIAN_MONTHLY_BILLS_ENABLED=true NEXT_PUBLIC_BRIAN_EMAIL_TRIAGE_ENABLED=true npm run build --workspace @nimchat/web
 npx playwright install chromium   # or set PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
 npm run test:e2e --workspace @nimchat/web
 ```
+
+### Desktop (Linux)
+
+The desktop app bundles the standalone web server and serves it on
+`http://127.0.0.1:3170`; if your Nimlet restricts CORS origins, allow that one. The port is
+fixed because the session token and timeline cache are stored per origin; override it with
+`NIMCHAT_PORT`.
+
+```sh
+export NEXT_PUBLIC_NIMLET_URL=... NEXT_PUBLIC_BRIAN_AGENT_IDS=... NEXT_PUBLIC_BRIAN_PUBLISHER_IDS=...
+npm run dist --workspace @nimchat/desktop     # runs the web release build, then packages
+./apps/desktop/dist/NimChat-0.1.0.AppImage
+```
+
+For development, run `next dev` and point the shell at it:
+`NIMCHAT_DESKTOP_URL=http://localhost:3000 npm run dev --workspace @nimchat/desktop`.
 
 ### Android
 
@@ -91,6 +108,7 @@ adb install -r android/app/build/outputs/apk/release/app-release.apk
 | `NEXT_PUBLIC_BRIAN_PUBLISHER_IDS` | `EXPO_PUBLIC_BRIAN_PUBLISHER_IDS` | Comma-separated publisher user IDs trusted for plugin state. |
 | `NEXT_PUBLIC_BRIAN_SHARING_ENABLED` | `EXPO_PUBLIC_BRIAN_SHARING_ENABLED` | Shared surfaces (needs agent-blocks room-admin). |
 | `NEXT_PUBLIC_BRIAN_MONTHLY_BILLS_ENABLED` | `EXPO_PUBLIC_BRIAN_MONTHLY_BILLS_ENABLED` | Monthly bills plugin UI. |
+| `NEXT_PUBLIC_BRIAN_EMAIL_TRIAGE_ENABLED` | `EXPO_PUBLIC_BRIAN_EMAIL_TRIAGE_ENABLED` | Mailbox surface (`email_triage`, producer-owned; no bodies, no agent access). |
 | `NEXT_PUBLIC_BRIAN_SURFACE_NAMES_ENABLED` | `EXPO_PUBLIC_BRIAN_SURFACE_NAMES_ENABLED` | Renaming surfaces. |
 
 ## Translations

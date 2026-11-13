@@ -1,0 +1,19 @@
+appId: dev.nimchat.desktop
+productName: NimChat
+directories:
+  output: dist
+  buildResources: build
+files:
+  - main.js
+  - package.json
+  - build/icon.png
+# The Next standalone server (assembled by scripts/prepare-server.mjs) ships next to the
+# asar, not inside it: utilityProcess needs real files on disk. It is copied by a hook
+# rather than extraResources, which silently drops the traced node_modules.
+afterPack: scripts/after-pack.cjs
+linux:
+  target: [AppImage, dir]
+  category: Network;Chat
+  icon: build/icon.png
+  executableName: nimchat
+  syncDesktopName: true

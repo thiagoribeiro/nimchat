@@ -1,5 +1,6 @@
 import { t, msg } from "@nimchat/i18n";
 import { validMonthlyBills } from "./monthly-bills.ts";
+import { validEmailTriage } from "./email-triage.ts";
 import * as validators from "./validators.js";
 import catalog from "./catalog.js";
 
@@ -36,6 +37,7 @@ export interface Surface {
 }
 const known = new Set([
   "monthly_bills",
+  "email_triage",
   "agent_status",
   "approval",
   "workflow",
@@ -46,6 +48,11 @@ const known = new Set([
 const v = validators as unknown as Record<string, (value: unknown) => boolean>;
 const object = (x: unknown): x is Block =>
   !!x && typeof x === "object" && !Array.isArray(x);
+// A state event carries the plugin view; publishers may send only the required
+// `state` (the view is the same object), so read `view` and fall back to `state`.
+export function eventView(c: Block): Block | undefined {
+  return object(c.view) ? c.view : object(c.state) ? c.state : undefined;
+}
 export const instanceKey = (room: string, plugin: string, id: string) =>
   JSON.stringify([room, plugin, id]);
 export function supported(block: Block): boolean {
@@ -54,7 +61,11 @@ export function supported(block: Block): boolean {
   if (
     !object(view) ||
     JSON.stringify(view).length >
-      (block.plugin === "monthly_bills" ? 1048576 : 128000)
+      (block.plugin === "monthly_bills"
+        ? 1048576
+        : block.plugin === "email_triage"
+          ? 524288
+          : 128000)
   )
     return false;
   if (
@@ -71,7 +82,9 @@ export function supported(block: Block): boolean {
     v.plugins_plugin_block(block) &&
     (block.plugin === "monthly_bills"
       ? validMonthlyBills(block.view)
-      : v["plugins_" + block.plugin + "_block"]?.(block.view)) === true &&
+      : block.plugin === "email_triage"
+        ? validEmailTriage(block.view)
+        : v["plugins_" + block.plugin + "_block"]?.(block.view)) === true &&
     Number.isSafeInteger(block.view?.revision) &&
     block.view.revision > 0
   );
@@ -121,11 +134,14 @@ export function textContent(content: unknown): string {
     )
     .join("\n");
 }
+// Application-owned plugins are not in the bundled BRIAN catalog.
+const appPolicy: Record<string, { surfaces: Record<string, string[]> }> = {
+  monthly_bills: { surfaces: { auto_pin_when: ["open"], auto_unpin_when: ["archived"] } },
+  email_triage: { surfaces: { auto_pin_when: ["open"] } },
+};
 function policy(block: Block): { active: boolean; priority: number } {
   const entry =
-    block.plugin === "monthly_bills"
-      ? { surfaces: { auto_pin_when: ["open"], auto_unpin_when: ["archived"] } }
-      : catalog.plugins.find((p) => p.name === block.plugin);
+    appPolicy[block.plugin] ?? catalog.plugins.find((p) => p.name === block.plugin);
   const status = block.view?.status;
   const rules = entry?.surfaces as
     { auto_pin_when?: string[]; auto_unpin_when?: string[] } | undefined;
@@ -190,10 +206,11 @@ export function project(
         e.type === "m.plugin.instance.created") &&
       trust.publishers.has(e.sender_id)
     ) {
+      const view = eventView(c);
       if (
         typeof c.plugin !== "string" ||
         typeof c.instance_id !== "string" ||
-        !object(c.view)
+        !view
       )
         continue;
       const candidate = {
@@ -202,13 +219,13 @@ export function project(
         version: "1.0",
         schema_version: "1.0",
         instance_id: c.instance_id,
-        view: c.view,
-        fallback_markdown: `${c.view.title || c.plugin} — ${c.view.status}`,
+        view,
+        fallback_markdown: `${view.title || c.plugin} — ${view.status}`,
       };
       if (!supported(candidate)) continue;
       const key = instanceKey(e.room_id, c.plugin, c.instance_id);
       const old = states.get(key);
-      if (!old || c.view.revision > old.block.view.revision)
+      if (!old || view.revision > old.block.view.revision)
         states.set(key, { block: candidate, event: e });
     } else if (
       e.type === "m.ui.surface.dismissed" &&
@@ -351,6 +368,7 @@ export function statusDuration(
 // Labels are English message keys, translated when read.
 const pluginLabels: Record<string, string> = {
   monthly_bills: msg("Monthly bills"),
+  email_triage: msg("Email"),
   approval: msg("Approval"),
   workflow: msg("Workflow"),
   checklist: msg("Checklist"),
@@ -411,9 +429,7 @@ export function statusInfo(
 export function terminal(block: Block): boolean {
   if (block.view?.transfer?.phase === "moved") return true;
   const entry =
-    block.plugin === "monthly_bills"
-      ? { surfaces: { auto_pin_when: ["open"], auto_unpin_when: ["archived"] } }
-      : catalog.plugins.find((p) => p.name === block.plugin);
+    appPolicy[block.plugin] ?? catalog.plugins.find((p) => p.name === block.plugin);
   const rules = entry?.surfaces as { auto_unpin_when?: string[] } | undefined;
   return !!rules?.auto_unpin_when?.includes(block.view?.status);
 }
@@ -475,4 +491,16 @@ export type { FormDraft } from "./form-fields.ts";
 export { otherBillGroup, billGroup, billToday, shiftBillMonth, billMonthLabel, billMonthName, billDateLabel, validBillDate, billSummary, billOpenLabel, groupBills, shortBillName } from "./monthly-bills.ts";
 export type { BillFilter } from "./monthly-bills.ts";
 export { useMonthlyBills } from "./use-monthly-bills.ts";
+export {
+  validEmailTriage,
+  emailTabs,
+  emailRowStates,
+  emailDueLabel,
+  emailItemDetail,
+  emailPriorityLabel,
+  emailBatchLabel,
+  emailFailure,
+  EMAIL_COMMANDS,
+} from "./email-triage.ts";
+export type { EmailCommand, EmailRowState } from "./email-triage.ts";
 export type { BillsProps } from "./use-monthly-bills.ts";
