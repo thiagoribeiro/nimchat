@@ -91,6 +91,7 @@ adb install -r android/app/build/outputs/apk/release/app-release.apk
 | `NEXT_PUBLIC_BRIAN_PUBLISHER_IDS` | `EXPO_PUBLIC_BRIAN_PUBLISHER_IDS` | Comma-separated publisher user IDs trusted for plugin state. |
 | `NEXT_PUBLIC_BRIAN_SHARING_ENABLED` | `EXPO_PUBLIC_BRIAN_SHARING_ENABLED` | Shared surfaces (needs agent-blocks room-admin). |
 | `NEXT_PUBLIC_BRIAN_MONTHLY_BILLS_ENABLED` | `EXPO_PUBLIC_BRIAN_MONTHLY_BILLS_ENABLED` | Monthly bills plugin UI. |
+| `NEXT_PUBLIC_BRIAN_EMAIL_TRIAGE_ENABLED` | `EXPO_PUBLIC_BRIAN_EMAIL_TRIAGE_ENABLED` | Mailbox surface (`email_triage`, producer-owned; no bodies, no agent access). |
 | `NEXT_PUBLIC_BRIAN_SURFACE_NAMES_ENABLED` | `EXPO_PUBLIC_BRIAN_SURFACE_NAMES_ENABLED` | Renaming surfaces. |
 
 ## Translations
