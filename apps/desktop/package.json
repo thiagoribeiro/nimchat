@@ -1,0 +1,22 @@
+{
+  "name": "@nimchat/desktop",
+  "version": "0.1.0",
+  "productName": "NimChat",
+  "private": true,
+  "description": "NimChat desktop app (Electron shell around the web build)",
+  "author": "Thiago Azeredo <thiagoribeiro@gmail.com>",
+  "homepage": "https://github.com/thiagoribeiro/nimchat",
+  "main": "main.js",
+  "desktopName": "nimchat.desktop",
+  "scripts": {
+    "dev": "env -u ELECTRON_RUN_AS_NODE electron .",
+    "prepare:server": "node scripts/prepare-server.mjs",
+    "dist": "node scripts/prepare-server.mjs && electron-builder --linux",
+    "dist:dir": "node scripts/prepare-server.mjs && electron-builder --linux --dir"
+  },
+  "devDependencies": {
+    "electron": "45.0.0",
+    "electron-builder": "26.18.0"
+  },
+  "license": "Apache-2.0"
+}
