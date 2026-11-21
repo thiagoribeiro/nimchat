@@ -402,6 +402,7 @@ export const ptBR: Record<string, string> = {
   "The instance is not in the loaded history.": "A instância não está no histórico carregado.",
   "The list will move to Surfaces and a shortcut will stay in this conversation. The other people will need to accept the invitation.": "A lista será movida para Superfícies e ficará um atalho nesta conversa. As outras pessoas precisarão aceitar o convite.",
   "The original message is not in the available history.": "A mensagem de origem não está no histórico disponível.",
+  "New messages": "Novas mensagens",
   "The original message was not found in the loaded pages.": "A mensagem de origem não foi encontrada nas páginas carregadas.",
   "The plugin has not responded yet. You can try again.": "O plugin ainda não respondeu. Você pode tentar novamente.",
   "The record is not confirmed yet.": "O registro ainda não foi confirmado.",

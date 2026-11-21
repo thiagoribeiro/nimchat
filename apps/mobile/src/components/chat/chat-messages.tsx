@@ -31,6 +31,11 @@ export function ChatMessages({ seek }: { seek?: { eventId: string; key: string }
   const listRef = useRef<FlatList<Row>>(null);
   const [highlight, setHighlight] = useState<string | undefined>();
   const [seekNotice, setSeekNotice] = useState("");
+  // Read position when the room was opened: markRoom moves it forward as soon as
+  // the screen is focused, so the unread divider must use this snapshot.
+  const [readFloor] = useState(() => useBrianRead.getState().roomSeen[roomId] ?? 0);
+  // viewPosition of the last scrollToIndex, reused when it has to be retried.
+  const scrollPosition = useRef(0.5);
 
   // FlatList `inverted` renders index 0 at the bottom, so newest-first ordering
   // keeps the conversation anchored to the composer.
@@ -60,6 +65,17 @@ export function ChatMessages({ seek }: { seek?: { eventId: string; key: string }
     [outgoing, social],
   );
   const reactionsByTarget = useMemo(() => groupReactions(events), [events]);
+
+  // Oldest row with a message from someone else that arrived after readFloor,
+  // the same rule the room list uses to count unread messages.
+  const firstUnread = useMemo(() => {
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const r = rows[i];
+      if (r.kind === "event" && r.event.events.some((e) => e.sender_id !== userId && e.room_seq > readFloor))
+        return r.event.key;
+    }
+    return undefined;
+  }, [rows, userId, readFloor]);
 
   // Reading the timeline marks only the timeline; surfaces keep their own state.
   const newest = Math.max(0, ...social.map((r) => r.readSeq));
@@ -100,9 +116,23 @@ export function ChatMessages({ seek }: { seek?: { eventId: string; key: string }
     };
   }, [seek, focusEvent, history.status]);
 
+  // Opening a room lands on the first unread message instead of the newest one.
+  // Once per mount, and never over an explicit seek to another message.
+  const landed = useRef(false);
+  useEffect(() => {
+    if (landed.current || seek || history.status !== "loaded" || rows.length === 0) return;
+    landed.current = true;
+    const index = rows.findIndex((r) => r.kind === "event" && r.event.key === firstUnread);
+    if (index <= 0) return;
+    // The list is inverted, so viewPosition 1 puts the row at the top of the screen.
+    scrollPosition.current = 1;
+    requestAnimationFrame(() => listRef.current?.scrollToIndex({ index, viewPosition: 1, animated: false }));
+  }, [seek, history.status, rows, firstUnread]);
+
   useEffect(() => {
     if (!highlight) return;
     const index = rows.findIndex((r) => r.kind === "event" && r.event.eventIds.includes(highlight ?? ""));
+    scrollPosition.current = 0.5;
     if (index >= 0) listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
     const timer = setTimeout(() => setHighlight(undefined), 2500);
     return () => clearTimeout(timer);
@@ -148,8 +178,17 @@ export function ChatMessages({ seek }: { seek?: { eventId: string; key: string }
           keyExtractor={(r) => (r.kind === "event" ? r.event.key : `txn:${r.item.txn}`)}
           renderItem={({ item: r }) =>
             r.kind === "event" ? (
-              <AgentTurn row={r.event} reactions={reactionsByTarget} trust={trust}
-                highlighted={r.event.eventIds.includes(highlight ?? "")} surfaces={surfaces} />
+              <>
+                {r.event.key === firstUnread && (
+                  <View style={styles.unread} accessibilityRole="header">
+                    <View style={styles.unreadLine} />
+                    <Text style={[type.caption, styles.unreadLabel]}>{t("New messages")}</Text>
+                    <View style={styles.unreadLine} />
+                  </View>
+                )}
+                <AgentTurn row={r.event} reactions={reactionsByTarget} trust={trust}
+                  highlighted={r.event.eventIds.includes(highlight ?? "")} surfaces={surfaces} />
+              </>
             ) : (
               <OutgoingItem item={r.item} senderId={userId ?? ""} />
             )
@@ -159,7 +198,7 @@ export function ChatMessages({ seek }: { seek?: { eventId: string; key: string }
           onScrollToIndexFailed={({ index, averageItemLength }) => {
             listRef.current?.scrollToOffset({ offset: index * averageItemLength, animated: false });
             setTimeout(
-              () => listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true }),
+              () => listRef.current?.scrollToIndex({ index, viewPosition: scrollPosition.current, animated: true }),
               120,
             );
           }}
@@ -188,4 +227,7 @@ const styles = StyleSheet.create({
   },
   notice: { textAlign: "center", padding: space.sm, backgroundColor: colors.surfaceRaised },
   loadingMore: { paddingVertical: space.md },
+  unread: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md, paddingVertical: space.sm },
+  unreadLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.primary },
+  unreadLabel: { color: colors.primary },
 });
