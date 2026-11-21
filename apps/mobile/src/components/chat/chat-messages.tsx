@@ -178,7 +178,9 @@ export function ChatMessages({ seek }: { seek?: { eventId: string; key: string }
           keyExtractor={(r) => (r.kind === "event" ? r.event.key : `txn:${r.item.txn}`)}
           renderItem={({ item: r }) =>
             r.kind === "event" ? (
-              <>
+              // Inverted cells lay out children with column-reverse, so the divider
+              // needs its own wrapper to stay above the row.
+              <View>
                 {r.event.key === firstUnread && (
                   <View style={styles.unread} accessibilityRole="header">
                     <View style={styles.unreadLine} />
@@ -188,7 +190,7 @@ export function ChatMessages({ seek }: { seek?: { eventId: string; key: string }
                 )}
                 <AgentTurn row={r.event} reactions={reactionsByTarget} trust={trust}
                   highlighted={r.event.eventIds.includes(highlight ?? "")} surfaces={surfaces} />
-              </>
+              </View>
             ) : (
               <OutgoingItem item={r.item} senderId={userId ?? ""} />
             )
